@@ -40,7 +40,8 @@ async function startScan(){
  },"video",(result)=>{
    if(!result) return;
    const code=result.getText();
-   if(!/^\\d{13}$/.test(code)) return;
+console.log(code);
+if(!/^\d{13}$/.test(code)) return;
    if(code===lastJAN) return;
    lastJAN=code; currentJAN=code;
    document.getElementById("result").innerText=code;
