@@ -109,8 +109,17 @@ PNG保存
 
 <script>
 
+const hints = new Map();
+
+hints.set(
+ZXing.DecodeHintType.POSSIBLE_FORMATS,
+[
+ZXing.BarcodeFormat.EAN_13,
+ZXing.BarcodeFormat.EAN_8
+]);
+
 const codeReader =
-new ZXing.BrowserMultiFormatReader();
+new ZXing.BrowserMultiFormatReader(hints);
 
 let currentJAN = "";
 let lastJAN = "";
@@ -132,14 +141,19 @@ async function startScan(){
 
             if(result){
 
-                const code =
-                result.getText();
+                const code =result.getText();
 
-                if(
-                    code === lastJAN
-                ){
-                    return;
-                }
+if(
+    !/^\d{13}$|^\d{8}$/.test(code)
+){
+    return;
+}
+
+if(
+    code === lastJAN
+){
+    return;
+}
 
                 lastJAN =
                 code;
