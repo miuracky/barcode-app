@@ -29,9 +29,8 @@ button{font-size:18px;padding:10px;margin:5px}
 <br><button onclick="saveImage()">PNG保存</button>
 <canvas id="barcodeCanvas"></canvas>
 <script>
-const hints=new Map();
-hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,[ZXing.BarcodeFormat.EAN_13]);
-const codeReader=new ZXing.BrowserMultiFormatReader(hints);
+const codeReader =
+new ZXing.BrowserMultiFormatReader();
 let currentJAN="",lastJAN="";
 
 async function startScan(){
