@@ -1,10 +1,179 @@
 <!DOCTYPE html>
-<html>
+
+<html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>テスト</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<title>JANコード保存</title>
+
+<script src="https://unpkg.com/@zxing/library@latest"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+
+<style>
+body{
+font-family:sans-serif;
+text-align:center;
+margin:10px;
+}
+
+video{
+width:100%;
+max-width:500px;
+border:1px solid #ccc;
+border-radius:8px;
+}
+
+button{
+font-size:18px;
+padding:10px;
+margin:5px;
+}
+
+#result{
+font-size:22px;
+margin-top:10px;
+font-weight:bold;
+}
+
+canvas{
+max-width:100%;
+}
+</style>
+
 </head>
+
 <body>
-<h1>GitHub Pages成功！</h1>
+
+<h2>JANコード読取</h2>
+
+<video id="video" autoplay playsinline></video>
+
+<br>
+
+<button onclick="startScan()">
+カメラ開始
+</button>
+
+<div id="result">
+未読取
+</div>
+
+<br>
+
+<canvas id="canvas"></canvas>
+
+<br>
+
+<button id="saveBtn" style="display:none;">
+写真に保存
+</button>
+
+<script>
+
+const codeReader =
+new ZXing.BrowserMultiFormatReader();
+
+let lastCode = "";
+
+async function startScan(){
+
+const devices =
+await codeReader.listVideoInputDevices();
+
+await codeReader.decodeFromVideoDevice(
+devices[0].deviceId,
+'video',
+(result,err)=>{
+
+if(result){
+
+const code=result.text;
+
+if(code===lastCode){
+return;
+}
+
+lastCode=code;
+
+document.getElementById("result").innerText=code;
+
+createBarcode(code);
+
+navigator.vibrate?.(200);
+
+}
+
+});
+}
+
+function createBarcode(code){
+
+const canvas =
+document.getElementById("canvas");
+
+let format="EAN13";
+
+if(code.length===8){
+format="EAN8";
+}
+
+JsBarcode(canvas,code,{
+format:format,
+displayValue:true,
+width:2,
+height:120
+});
+
+document.getElementById("saveBtn")
+.style.display="inline-block";
+
+document.getElementById("saveBtn")
+.onclick=()=>saveImage(code);
+}
+
+function saveImage(code){
+
+const canvas =
+document.getElementById("canvas");
+
+canvas.toBlob(async(blob)=>{
+
+const file =
+new File(
+[blob],
+code + ".png",
+{type:"image/png"}
+);
+
+if(navigator.share){
+
+await navigator.share({
+files:[file],
+title:"JAN Barcode"
+});
+
+}else{
+
+const a =
+document.createElement("a");
+
+a.href =
+URL.createObjectURL(blob);
+
+a.download =
+code + ".png";
+
+a.click();
+
+}
+
+});
+
+}
+
+</script>
+
 </body>
 </html>
