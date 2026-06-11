@@ -1,455 +1,85 @@
 <!DOCTYPE html>
-
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-
-<title>JANコードPNG保存</title>
-
+<title>JAN専用スキャナ Ver1.1</title>
 <script src="https://unpkg.com/@zxing/library@latest"></script>
-
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
-
 <style>
-
-body{
-    font-family:sans-serif;
-    text-align:center;
-    margin:10px;
-    background:#ffffff;
-}
-
-h2{
-    margin-bottom:10px;
-}
-
-video{
-    width:100%;
-    max-width:500px;
-    border:2px solid #333;
-    border-radius:10px;
-}
-
-input{
-    width:95%;
-    max-width:500px;
-    font-size:22px;
-    padding:10px;
-    margin-top:10px;
-}
-
-button{
-    font-size:18px;
-    padding:10px 15px;
-    margin:5px;
-}
-
-#result{
-    font-size:24px;
-    font-weight:bold;
-    color:#0066cc;
-    margin:10px;
-}
-
-#barcodeCanvas{
-    display:none;
-}
-
-.scan-frame{
-    width:280px;
-    height:120px;
-    border:4px solid red;
-    margin:10px auto;
-    border-radius:10px;
-    box-sizing:border-box;
-}
-
+body{font-family:sans-serif;text-align:center;margin:10px}
+video{width:100%;max-width:520px;border:2px solid #333;border-radius:8px}
+#frame{width:280px;height:120px;border:4px solid red;margin:10px auto}
+input{width:95%;max-width:520px;font-size:22px;padding:8px}
+button{font-size:18px;padding:10px;margin:5px}
+#result{font-size:24px;font-weight:bold;margin:10px}
+#barcodeCanvas{display:none}
 </style>
-
 </head>
 <body>
-
-<h2>JANコード読取</h2>
-
-<video
- id="video"
- autoplay
- muted
- playsinline> </video>
-
-<div class="scan-frame"></div>
-
-<br>
-
-<button onclick="startScan()">
-カメラ開始
-</button>
-
-<button onclick="startVoice()">
-🎤音声入力
-</button>
-
-<div id="result">
-未読取
+<h2>JAN専用スキャナ Ver1.1</h2>
+<video id="video" autoplay playsinline muted></video>
+<div id="frame"></div>
+<div>
+<button onclick="startScan()">カメラ開始</button>
+<button onclick="startVoice()">🎤音声入力</button>
 </div>
-
-<input
- id="productName"
- type="text"
- placeholder="商品名を入力">
-
-<br>
-
-<button onclick="saveImage()">
-PNG保存
-</button>
-
+<div id="result">未読取</div>
+<input id="productName" placeholder="商品名">
+<br><button onclick="saveImage()">PNG保存</button>
 <canvas id="barcodeCanvas"></canvas>
-
 <script>
-
-const hints = new Map();
-
-hints.set(
-ZXing.DecodeHintType.POSSIBLE_FORMATS,
-[
-ZXing.BarcodeFormat.EAN_13,
-ZXing.BarcodeFormat.EAN_8
-]);
-
-const codeReader =
-new ZXing.BrowserMultiFormatReader(hints);
-
-let currentJAN = "";
-let lastJAN = "";
+const hints=new Map();
+hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,[ZXing.BarcodeFormat.EAN_13]);
+const codeReader=new ZXing.BrowserMultiFormatReader(hints);
+let currentJAN="",lastJAN="";
 
 async function startScan(){
-
-    try{
-
-        await codeReader.decodeFromConstraints(
-        {
-            video:{
-                facingMode:{
-                    ideal:"environment"
-                }
-            }
-        },
-        "video",
-        (result,err)=>{
-
-            if(result){
-
-                const code =result.getText();
-
-if(
-    !/^\d{13}$|^\d{8}$/.test(code)
-){
-    return;
-}
-
-if(
-    code === lastJAN
-){
-    return;
-}
-
-                lastJAN =
-                code;
-
-                currentJAN =
-                code;
-
-                document
-                .getElementById("result")
-                .innerText =
-                code;
-
-                createBarcode(code);
-
-                if(
-                    navigator.vibrate
-                ){
-                    navigator
-                    .vibrate(200);
-                }
-
-            }
-
-        });
-
-    }catch(e){
-
-        alert(
-            "カメラ起動失敗\n" +
-            e.message
-        );
-
-    }
-
-}
-
-function createBarcode(code){
-
-    let format =
-    "EAN13";
-
-    if(
-        code.length === 8
-    ){
-        format =
-        "EAN8";
-    }
-
-    JsBarcode(
-        "#barcodeCanvas",
-        code,
-        {
-            format:format,
-            width:3,
-            height:150,
-            displayValue:false
-        }
-    );
-
+ try{
+ await codeReader.decodeFromConstraints({
+  video:{facingMode:{ideal:"environment"}}
+ },"video",(result)=>{
+   if(!result) return;
+   const code=result.getText();
+   if(!/^\\d{13}$/.test(code)) return;
+   if(code===lastJAN) return;
+   lastJAN=code; currentJAN=code;
+   document.getElementById("result").innerText=code;
+   JsBarcode("#barcodeCanvas",code,{format:"EAN13",displayValue:false,width:3,height:150});
+ });
+ }catch(e){alert(e.message);}
 }
 
 function startVoice(){
-
-    const SpeechRecognition =
-        window.SpeechRecognition ||
-        window.webkitSpeechRecognition;
-
-    if(
-        !SpeechRecognition
-    ){
-
-        alert(
-            "音声入力非対応ブラウザ"
-        );
-
-        return;
-
-    }
-
-    const recognition =
-    new SpeechRecognition();
-
-    recognition.lang =
-    "ja-JP";
-
-    recognition.start();
-
-    recognition.onresult =
-    function(event){
-
-        document
-        .getElementById(
-        "productName")
-        .value =
-        event.results[0][0]
-        .transcript;
-
-    };
-
+ const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+ if(!SR){alert("音声入力非対応");return;}
+ const r=new SR(); r.lang="ja-JP";
+ r.onresult=e=>document.getElementById("productName").value=e.results[0][0].transcript;
+ r.start();
 }
 
-function splitText(text){
-
-    if(
-        text.length <= 15
-    ){
-
-        return [text];
-
-    }
-
-    return [
-
-        text.substring(
-            0,
-            15
-        ),
-
-        text.substring(
-            15
-        )
-
-    ];
-
+function saveImage(){
+ if(!currentJAN){alert("JAN未読取");return;}
+ const name=document.getElementById("productName").value.trim();
+ if(!name){alert("商品名入力");return;}
+ const src=document.getElementById("barcodeCanvas");
+ const out=document.createElement("canvas");
+ out.width=1200; out.height=900;
+ const c=out.getContext("2d");
+ c.fillStyle="#fff"; c.fillRect(0,0,1200,900);
+ c.fillStyle="#000"; c.textAlign="center";
+ c.font="bold 52px sans-serif";
+ const line1=name.slice(0,15), line2=name.slice(15);
+ c.fillText(line1,600,90);
+ if(line2) c.fillText(line2,600,150);
+ c.drawImage(src,150,240,900,280);
+ c.font="48px monospace";
+ c.fillText(currentJAN,600,620);
+ out.toBlob(async b=>{
+  const f=new File([b],`${name}_${currentJAN}.png`,{type:"image/png"});
+  if(navigator.share) await navigator.share({files:[f]});
+ });
 }
-
-async function saveImage(){
-
-    if(
-        !currentJAN
-    ){
-
-        alert(
-        "JANコード未読取"
-        );
-
-        return;
-
-    }
-
-    const name =
-    document
-    .getElementById(
-    "productName"
-    ).value.trim();
-
-    if(
-        name === ""
-    ){
-
-        alert(
-        "商品名を入力"
-        );
-
-        return;
-
-    }
-
-    const barcode =
-    document
-    .getElementById(
-    "barcodeCanvas"
-    );
-
-    const out =
-    document
-    .createElement(
-    "canvas"
-    );
-
-    out.width =
-    1200;
-
-    out.height =
-    900;
-
-    const ctx =
-    out.getContext(
-    "2d"
-    );
-
-    ctx.fillStyle =
-    "#ffffff";
-
-    ctx.fillRect(
-    0,
-    0,
-    1200,
-    900
-    );
-
-    ctx.fillStyle =
-    "#000000";
-
-    ctx.textAlign =
-    "center";
-
-    ctx.font =
-    "bold 48px sans-serif";
-
-    const lines =
-    splitText(name);
-
-    if(
-        lines.length === 1
-    ){
-
-        ctx.fillText(
-        lines[0],
-        600,
-        90
-        );
-
-    }else{
-
-        ctx.fillText(
-        lines[0],
-        600,
-        80
-        );
-
-        ctx.fillText(
-        lines[1],
-        600,
-        140
-        );
-
-    }
-
-    ctx.drawImage(
-        barcode,
-        150,
-        220,
-        900,
-        280
-    );
-
-    ctx.font =
-    "48px monospace";
-
-    ctx.fillText(
-        currentJAN,
-        600,
-        620
-    );
-
-    out.toBlob(
-    async(blob)=>{
-
-        const file =
-        new File(
-        [blob],
-        name +
-        "_" +
-        currentJAN +
-        ".png",
-        {
-            type:
-            "image/png"
-        });
-
-        if(
-            navigator.share
-        ){
-
-            await navigator
-            .share({
-                files:[file]
-            });
-
-        }else{
-
-            const a =
-            document
-            .createElement(
-            "a"
-            );
-
-            a.href =
-            URL
-            .createObjectURL(
-            blob
-            );
-
-            a.download =
-            file.name;
-
-            a.click();
-
-        }
-
-    });
-
-}
-
 </script>
-
 </body>
 </html>
