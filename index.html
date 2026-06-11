@@ -155,14 +155,27 @@ if(
 return;
 }
 
-if(
-code===lastJAN
-){
-return;
+if(code === candidateJAN){
+
+    candidateCount++;
+
+}else{
+
+    candidateJAN = code;
+    candidateCount = 1;
+
 }
 
-lastJAN=code;
-currentJAN=code;
+if(candidateCount < 2){
+    return;
+}
+
+if(code === lastJAN){
+    return;
+}
+
+lastJAN = code;
+currentJAN = code;
 
 document
 .getElementById("result")
