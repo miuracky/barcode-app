@@ -2,9 +2,11 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JAN専用スキャナ</title>
 
-<title>JANテスト</title>
+<script src="https://unpkg.com/@zxing/library@latest"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
 
 <style>
 body{
@@ -15,88 +17,163 @@ margin:10px;
 
 video{
 width:100%;
-max-width:500px;
+max-width:520px;
 border:2px solid #333;
+border-radius:10px;
 }
 
-#result{
-font-size:30px;
-font-weight:bold;
-margin-top:20px;
-color:blue;
-}
-
-.frame{
-position:absolute;
-left:50%;
-top:50%;
-transform:translate(-50%,-50%);
+#frame{
 width:280px;
 height:120px;
 border:4px solid red;
-pointer-events:none;
+margin:10px auto;
+border-radius:10px;
 }
 
-.wrap{
-position:relative;
-display:inline-block;
+input{
+width:95%;
+max-width:520px;
+font-size:22px;
+padding:10px;
+}
+
+button{
+font-size:18px;
+padding:10px;
+margin:5px;
+}
+
+#result{
+font-size:26px;
+font-weight:bold;
+margin:10px;
+color:#0066cc;
+}
+
+#barcodeCanvas{
+display:none;
 }
 </style>
 </head>
-
 <body>
 
-<h2>JAN読取テスト</h2>
+<h2>JAN専用スキャナ</h2>
 
-<div class="wrap">
 <video id="video" autoplay playsinline muted></video>
-<div class="frame"></div>
-</div>
+
+<div id="frame"></div>
+
+<button onclick="startScan()">カメラ開始</button>
+<button onclick="startVoice()">🎤音声入力</button>
+
+<div id="result">未読取</div>
+
+<input
+id="productName"
+placeholder="商品名を入力">
 
 <br><br>
 
-<button id="startBtn">
-カメラ開始
-</button>
+<button onclick="saveImage()">PNG保存</button>
 
-<div id="result">
-未読取
-</div>
+<canvas id="barcodeCanvas"></canvas>
 
 <script>
 
-const resultEl =
-document.getElementById("result");
+const codeReader =
+new ZXing.BrowserMultiFormatReader();
 
-const video =
-document.getElementById("video");
+let currentJAN="";
+let lastJAN="";
 
-document
-.getElementById("startBtn")
-.addEventListener(
-"click",
-startCamera
+function createBarcode(code){
+
+JsBarcode(
+"#barcodeCanvas",
+code,
+{
+format:"EAN13",
+width:3,
+height:150,
+displayValue:false
+}
 );
 
-async function startCamera(){
+}
+
+async function startScan(){
 
 try{
 
-const stream =
-await navigator
-.mediaDevices
-.getUserMedia({
-video:{
-facingMode:{
-ideal:"environment"
-}
-}
-});
+const devices =
+await codeReader
+.listVideoInputDevices();
 
-video.srcObject =
-stream;
+let cameraId=null;
 
-startDetect();
+for(const d of devices){
+
+const label=
+(d.label||"")
+.toLowerCase();
+
+if(
+label.includes("back") ||
+label.includes("rear") ||
+label.includes("environment")
+){
+cameraId=d.deviceId;
+break;
+}
+
+}
+
+if(!cameraId && devices.length){
+cameraId=
+devices[devices.length-1]
+.deviceId;
+}
+
+await codeReader
+.decodeFromVideoDevice(
+cameraId,
+"video",
+(result,error)=>{
+
+if(!result){
+return;
+}
+
+const code=
+result.getText();
+
+console.log(code);
+
+if(
+!/^\d{13}$/.test(code)
+){
+return;
+}
+
+if(
+code===lastJAN
+){
+return;
+}
+
+lastJAN=code;
+currentJAN=code;
+
+document
+.getElementById("result")
+.innerText=code;
+
+createBarcode(code);
+
+navigator.vibrate?.(200);
+
+}
+);
 
 }catch(e){
 
@@ -105,60 +182,163 @@ alert(
 e.message
 );
 
-}
+console.error(e);
 
 }
 
-async function startDetect(){
+}
 
-if(
-!("BarcodeDetector" in window)
-){
+function startVoice(){
 
-resultEl.innerText =
-"BarcodeDetector未対応";
+const SR=
+window.SpeechRecognition ||
+window.webkitSpeechRecognition;
+
+if(!SR){
+
+alert(
+"音声入力非対応"
+);
+
+return;
+}
+
+const rec=
+new SR();
+
+rec.lang="ja-JP";
+
+rec.onresult=(e)=>{
+
+document
+.getElementById("productName")
+.value=
+e.results[0][0]
+.transcript;
+
+};
+
+rec.start();
+
+}
+
+function saveImage(){
+
+if(!currentJAN){
+
+alert("JAN未読取");
 
 return;
 
 }
 
-const detector =
-new BarcodeDetector({
-formats:[
-"ean_13"
-]
-});
+const name=
+document
+.getElementById("productName")
+.value
+.trim();
 
-setInterval(
-async()=>{
+if(!name){
 
-try{
+alert("商品名入力");
 
-const codes =
-await detector.detect(
-video
+return;
+
+}
+
+const src=
+document
+.getElementById(
+"barcodeCanvas"
+);
+
+const out=
+document
+.createElement(
+"canvas"
+);
+
+out.width=1200;
+out.height=900;
+
+const ctx=
+out.getContext("2d");
+
+ctx.fillStyle="#fff";
+ctx.fillRect(
+0,0,
+1200,900
+);
+
+ctx.fillStyle="#000";
+ctx.textAlign="center";
+
+ctx.font=
+"bold 54px sans-serif";
+
+const line1=
+name.slice(0,15);
+
+const line2=
+name.slice(15);
+
+ctx.fillText(
+line1,
+600,
+90
+);
+
+if(line2){
+
+ctx.fillText(
+line2,
+600,
+150
+);
+
+}
+
+ctx.drawImage(
+src,
+150,
+240,
+900,
+280
+);
+
+ctx.font=
+"48px monospace";
+
+ctx.fillText(
+currentJAN,
+600,
+620
+);
+
+out.toBlob(
+async(blob)=>{
+
+const file=
+new File(
+[blob],
+`${name}_${currentJAN}.png`,
+{
+type:"image/png"
+}
 );
 
 if(
-codes.length
+navigator.share
 ){
 
-const value =
-codes[0].rawValue;
-
-resultEl.innerText =
-value;
-
-}
-
-}catch(e){
-
-console.log(e);
+await navigator
+.share({
+files:[file]
+});
 
 }
 
-},
-500
+}
 );
 
 }
